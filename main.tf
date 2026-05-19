@@ -51,12 +51,6 @@ resource "akeyless_role" "role" {
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
-    rule_type  = "item-rule"
-  }
-
-  rules {
-    capability = ["read", "list"]
     path       = "/*"
     rule_type  = "item-rule"
   }
@@ -69,19 +63,19 @@ resource "akeyless_role" "role" {
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    path       = path       = "/*"
     rule_type  = "target-rule"
   }
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    path       = "/*"
     rule_type  = "role-rule"
   }
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    path       = "/*"
     rule_type  = "auth-method-rule"
   }
 
@@ -96,7 +90,7 @@ resource "akeyless_role" "role_viewer" {
 
   rules {
     capability = ["read", "list"]
-    path       = akeyless_role.role.name
+    path       = "/*"
     rule_type  = "role-rule"
   }
 }
