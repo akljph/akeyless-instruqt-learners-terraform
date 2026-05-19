@@ -57,7 +57,7 @@ resource "akeyless_role" "role" {
 
   rules {
     capability = ["read", "list"]
-    path       = format("/*", var.instruqt_user_id)
+    path       = "/*"
     rule_type  = "item-rule"
   }
 
