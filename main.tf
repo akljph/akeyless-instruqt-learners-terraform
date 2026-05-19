@@ -46,12 +46,18 @@ resource "akeyless_role" "role" {
   audit_access        = "own"
   analytics_access    = "own"
   event_center_access = "own"
-  gw_analytics_access = "all"
+  gw_analytics_access = "own"
   sra_reports_access  = "own"
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    rule_type  = "item-rule"
+  }
+
+  rules {
+    capability = ["read", "list"]
+    path       = format("/*", var.instruqt_user_id)
     rule_type  = "item-rule"
   }
 
