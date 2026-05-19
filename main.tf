@@ -46,7 +46,7 @@ resource "akeyless_role" "role" {
   audit_access        = "own"
   analytics_access    = "own"
   event_center_access = "own"
-  gw_analytics_access = "own"
+  gw_analytics_access = "all"
   sra_reports_access  = "own"
 
   rules {
