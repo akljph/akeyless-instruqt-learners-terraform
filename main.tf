@@ -114,8 +114,8 @@ resource "akeyless_associate_role_auth_method" "role_viewer_role" {
 }
 
 resource "akeyless_role" "gateway_viewer_role" {
-	name 				= akeyless_role.role.name
-	gw_analytics_access = "scoped"
+  name                = format("/instruqt-users-uid-roles/%s/gateway-viewer-%s-role", var.instruqt_user_id, var.instruqt_user_id)
+  gw_analytics_access = "scoped"
 }
 
 output "learner_uid" {
