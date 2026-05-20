@@ -39,11 +39,11 @@ resource "akeyless_auth_method_universal_identity" "learner_uid" {
 resource "akeyless_role" "sub_admin_role" {
   name                = format("/instruqt-users-uid-roles/%s/uid-%s-admin-role", var.instruqt_user_id, var.instruqt_user_id)
   description         = format("Virtual Root Admin Role for sandbox %s", var.instruqt_user_id)
-  audit_access        = "own"
-  analytics_access    = "own"
-  event_center_access = "own"
-  gw_analytics_access = "own"
-  sra_reports_access  = "own"
+  audit_access        = "all"
+  analytics_access    = "all"
+  event_center_access = "all"
+  gw_analytics_access = "all"
+  sra_reports_access  = "all"
 
   # Student has full administrator permissions over Secrets/Keys inside their sub-space
   rules {
