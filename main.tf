@@ -63,7 +63,7 @@ resource "akeyless_role" "role" {
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = path       = "/*"
+    path       = "/*"
     rule_type  = "target-rule"
   }
 
