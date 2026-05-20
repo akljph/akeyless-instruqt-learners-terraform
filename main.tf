@@ -17,16 +17,16 @@ provider "akeyless" {
 
 variable "akeyless_token" {
   type        = string
-  description = "Akeyless administrator session token"
+  description = "Akeyless token"
   sensitive   = true
 }
 
 variable "instruqt_user_id" {
   type        = string
-  description = "Unique Instruqt participant identifier used for multi-tenant isolation"
+  description = "Instruqt participant ID"
 }
 
-# 1. Create the Universal Identity (UID) Method for the student environment
+# Universal Identity for the learner
 resource "akeyless_auth_method_universal_identity" "learner_uid" {
   name        = format("/instruqt-users-uid/%s/uid-%s", var.instruqt_user_id, var.instruqt_user_id)
   jwt_ttl     = 500
@@ -34,39 +34,37 @@ resource "akeyless_auth_method_universal_identity" "learner_uid" {
   deny_rotate = true
 }
 
-# 2. Define a virtual "Sub-Admin" Role using Path Templating
-# Crucial change: The path utilizes {{user_space}} which enforces runtime tenant routing!
-resource "akeyless_role" "sub_admin_role" {
-  name                = format("/instruqt-users-uid-roles/%s/uid-%s-admin-role", var.instruqt_user_id, var.instruqt_user_id)
-  description         = format("Virtual Root Admin Role for sandbox %s", var.instruqt_user_id)
-  audit_access        = "all"
-  analytics_access    = "all"
+# The Sub-Admin Role utilizing Path Templating
+resource "akeyless_role" "role" {
+  name                = format("/instruqt-users-uid-roles/%s/uid-%s-role", var.instruqt_user_id, var.instruqt_user_id)
+  description         = format("Admin Role for user %s", var.instruqt_user_id)
+  
+  # SYSTEM ADMINISTRATIVE RIGHTS (Crucial for console.akeyless.io UI views)
+  audit_access        = "own"
+  analytics_access    = "own"
   event_center_access = "all"
-  gw_analytics_access = "all"
-  sra_reports_access  = "all"
+  gw_analytics_access = "all" # Enables visibility of the "Gateways" tab in the SaaS UI
+  sra_reports_access  = "own"
 
-  # Student has full administrator permissions over Secrets/Keys inside their sub-space
+  # Path Rules scoped safely to user space
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = "/TrainingUsers/{{user_space}}/*"
     rule_type  = "item-rule"
   }
 
-  # Student can manage and create Targets inside their sub-space
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = "/TrainingUsers/{{user_space}}/*"
     rule_type  = "target-rule"
   }
 
-  # Student can manage independent internal Roles inside their sub-space
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = "/TrainingUsers/{{user_space}}/*"
     rule_type  = "role-rule"
   }
 
-  # Student can manage independent internal Auth Methods inside their sub-space
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = "/TrainingUsers/{{user_space}}/*"
@@ -74,16 +72,15 @@ resource "akeyless_role" "sub_admin_role" {
   }
 }
 
-# 3. Associate the Identity to the Role, strictly pinning the user_space sub-claim
-resource "akeyless_associate_role_auth_method" "learner_sub_admin_assoc" {
+# Associating the identity with the designated role & injecting user_space criteria
+resource "akeyless_associate_role_auth_method" "learner_uid_role" {
   depends_on = [
-    akeyless_role.sub_admin_role,
+    akeyless_role.role,
     akeyless_auth_method_universal_identity.learner_uid
   ]
-  role_name = akeyless_role.sub_admin_role.name
+  role_name = akeyless_role.role.name
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
 
-  # Enforce that tokens authorized under this role MUST contain the participant's specific claim
   sub_claims = {
     user_space = var.instruqt_user_id
   }
