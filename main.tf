@@ -81,11 +81,6 @@ resource "akeyless_role" "role" {
 
 }
 
-resource "akeyless_role" "gateway_viewer_role" {
-	name 				= akeyless_role.role.name
-	gw_analytics_access = "scoped"
-}
-
 resource "akeyless_role" "role_viewer" {
   depends_on = [
     akeyless_role.role
@@ -116,6 +111,11 @@ resource "akeyless_associate_role_auth_method" "role_viewer_role" {
   ]
   role_name = akeyless_role.role_viewer.name
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
+}
+
+resource "akeyless_role" "gateway_viewer_role" {
+	name 				= akeyless_role.role.name
+	gw_analytics_access = "scoped"
 }
 
 output "learner_uid" {
