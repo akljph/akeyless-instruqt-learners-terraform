@@ -46,7 +46,34 @@ resource "akeyless_role" "role" {
   gw_analytics_access = "all"   # REVEALS THE GATEWAYS MENU TAB OPTION IN THE CONSOLE UI
   sra_reports_access  = "own"
 
-  # Path Rules scoped safely to user space using dynamic claim interpolation
+  # =========================================================================
+  # FIX: TRAVERSAL ALLOWANCES (Prevents 401 on parent directory actions)
+  # =========================================================================
+  rules {
+    capability = ["read", "list"]
+    path       = "/TrainingUsers"
+    rule_type  = "auth-method-rule"
+  }
+  rules {
+    capability = ["create", "read", "update", "delete", "list"]
+    path       = "/TrainingUsers/{{user_space}}"
+    rule_type  = "auth-method-rule"
+  }
+
+  rules {
+    capability = ["read", "list"]
+    path       = "/TrainingUsers"
+    rule_type  = "item-rule"
+  }
+  rules {
+    capability = ["create", "read", "update", "delete", "list"]
+    path       = "/TrainingUsers/{{user_space}}"
+    rule_type  = "item-rule"
+  }
+
+  # =========================================================================
+  # STANDARD CHILD PATH RULES 
+  # =========================================================================
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = "/TrainingUsers/{{user_space}}/*"
@@ -81,7 +108,6 @@ resource "akeyless_associate_role_auth_method" "learner_uid_role" {
   role_name = akeyless_role.role.name
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
 
-  # Enforce that tokens authorized under this role MUST contain the participant's specific claim
   sub_claims = {
     user_space = var.instruqt_user_id
   }
