@@ -47,7 +47,7 @@ resource "akeyless_role" "role" {
   sra_reports_access  = "own"
 
   # =========================================================================
-  # FIX: TRAVERSAL ALLOWANCES (Prevents 401 on parent directory actions)
+  # STRUCTURAL TRAVERSAL ALLOWANCES (Prevents 401 on parent directory actions)
   # =========================================================================
   rules {
     capability = ["read", "list"]
@@ -108,6 +108,7 @@ resource "akeyless_associate_role_auth_method" "learner_uid_role" {
   role_name = akeyless_role.role.name
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
 
+  # Enforce that tokens authorized under this role MUST contain the participant's specific claim
   sub_claims = {
     user_space = var.instruqt_user_id
   }
