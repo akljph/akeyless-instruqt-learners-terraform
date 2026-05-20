@@ -19,8 +19,10 @@ variable "instruqt_user_id" {
 
 provider "akeyless" {
   api_gateway_address = "https://api.akeyless.io"
-  api_key_login {
-    access_key = var.akeyless_token
+  
+  # ✅ FIX: Using api_key with token attribute handles transient management tokens perfectly
+  api_key {
+    token = var.akeyless_token
   }
 }
 
@@ -43,7 +45,7 @@ resource "akeyless_role" "role" {
   sra_reports_access  = "own"
   delete_protection   = "false"
   
-  # ✅ CORRECT PATTERN: Declared inline inside the primary role resource block
+  # Set inline inside the primary role resource block per your requirements
   gw_analytics_access = "scoped"
 }
 
@@ -81,11 +83,6 @@ resource "akeyless_role_rule" "admin_deny" {
   rule_type  = "item-rule"
   path       = "/Admin/*"
   capability = ["deny"]
-}
-
-resource "akeyless_role" "gateway_visibility" {
-	name 				= akeyless_role.role.name
-	gw_analytics_access = "scoped"
 }
 
 # 4. Associate the Role to the Universal Identity Method
