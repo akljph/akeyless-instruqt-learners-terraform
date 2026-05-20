@@ -1,117 +1,83 @@
 terraform {
   required_providers {
     akeyless = {
-      version = ">= 1.0.0"
       source  = "akeyless-community/akeyless"
+      version = ">= 1.8.0"
     }
-  }
-}
-
-provider "akeyless" {
-  api_gateway_address = "https://api.akeyless.io"
-
-  token_login {
-    token = var.akeyless_token
   }
 }
 
 variable "akeyless_token" {
   type        = string
-  description = "Akeyless admin auth session token"
-  sensitive   = true
+  description = "Akeyless Management Token"
 }
 
 variable "instruqt_user_id" {
   type        = string
-  description = "Instruqt participant ID unique hash mapping string"
+  description = "Unique Sandbox ID for the participant"
 }
 
-# 1. Create the Universal Identity (UID) Method for the student environment
+provider "akeyless" {
+  api_gateway_address = "https://api.akeyless.io"
+  token               = var.akeyless_token
+}
+
+# 1. Create the Universal Identity Auth Method for the Gateway
 resource "akeyless_auth_method_universal_identity" "learner_uid" {
-  name        = format("/instruqt-users-uid/%s/uid-%s", var.instruqt_user_id, var.instruqt_user_id)
-  jwt_ttl     = 500
-  ttl         = 500
-  deny_rotate = true
+  name              = "/instruqt-users-uid/${var.instruqt_user_id}/uid-${var.instruqt_user_id}"
+  ttl               = 500
+  jwt_ttl           = 500
+  deny_rotate       = true
+  delete_protection = "false"
 }
 
-# 2. Define a virtual "Sub-Admin" Role using Path Templating
+# 2. Main Admin Role with Corrected Administrative View Parameters
 resource "akeyless_role" "role" {
-  name        = format("/instruqt-users-uid-roles/%s/uid-%s-role", var.instruqt_user_id, var.instruqt_user_id)
-  description = format("Admin Scope for user %s", var.instruqt_user_id)
-  
-  # SYSTEM ADMINISTRATIVE RIGHTS (Crucial for console.akeyless.io visibility checks)
-  audit_access        = "own"
+  name                = "/instruqt-users-uid-roles/${var.instruqt_user_id}/uid-${var.instruqt_user_id}-role"
+  description         = "Role for user ${var.instruqt_user_id}"
   analytics_access    = "own"
-  event_center_access = "all"
-  gw_analytics_access = "all"   # REVEALS THE GATEWAYS MENU TAB OPTION IN THE CONSOLE UI
+  audit_access        = "own"
+  event_center_access = "own"
   sra_reports_access  = "own"
+  delete_protection   = "false"
 
-  # =========================================================================
-  # STRUCTURAL TRAVERSAL ALLOWANCES (Prevents 401 on parent directory actions)
-  # =========================================================================
-  rules {
-    capability = ["read", "list"]
-    path       = "/TrainingUsers"
-    rule_type  = "auth-method-rule"
-  }
-  rules {
-    capability = ["create", "read", "update", "delete", "list"]
-    path       = "/TrainingUsers/{{user_space}}"
-    rule_type  = "auth-method-rule"
-  }
+  # ✅ THE FIX: Aligns the "Gateways" Row in the console GUI to "Scoped" 
+  # This grants the UID-token-authenticated gateway permission to register, 
+  # check-in, and successfully list its cluster properties within the UI.
+  gw_analytics_access = "scoped"
 
+  # Standard laboratory folder engine permissions
   rules {
-    capability = ["read", "list"]
-    path       = "/TrainingUsers"
     rule_type  = "item-rule"
+    path       = "/TrainingUsers/${var.instruqt_user_id}/*"
+    capability = ["create", "read", "update", "delete", "list"]
   }
   rules {
-    capability = ["create", "read", "update", "delete", "list"]
-    path       = "/TrainingUsers/{{user_space}}"
-    rule_type  = "item-rule"
-  }
-
-  # =========================================================================
-  # STANDARD CHILD PATH RULES 
-  # =========================================================================
-  rules {
-    capability = ["create", "read", "update", "delete", "list"]
-    path       = "/TrainingUsers/{{user_space}}/*"
-    rule_type  = "item-rule"
-  }
-
-  rules {
-    capability = ["create", "read", "update", "delete", "list"]
-    path       = "/TrainingUsers/{{user_space}}/*"
-    rule_type  = "target-rule"
-  }
-
-  rules {
-    capability = ["create", "read", "update", "delete", "list"]
-    path       = "/TrainingUsers/{{user_space}}/*"
     rule_type  = "role-rule"
-  }
-
-  rules {
+    path       = "/TrainingUsers/${var.instruqt_user_id}/*"
     capability = ["create", "read", "update", "delete", "list"]
-    path       = "/TrainingUsers/{{user_space}}/*"
+  }
+  rules {
     rule_type  = "auth-method-rule"
+    path       = "/TrainingUsers/${var.instruqt_user_id}/*"
+    capability = ["create", "read", "update", "delete", "list"]
+  }
+  rules {
+    rule_type  = "target-rule"
+    path       = "/TrainingUsers/${var.instruqt_user_id}/*"
+    capability = ["create", "read", "update", "delete", "list"]
+  }
+  rules {
+    rule_type  = "item-rule"
+    path       = "/Admin/*"
+    capability = ["deny"]
   }
 }
 
-# 3. Associate the Identity to the Role, strictly pinning the user_space sub-claim
+# 3. Associate the Role to the Universal Identity Method
 resource "akeyless_associate_role_auth_method" "learner_uid_role" {
-  depends_on = [
-    akeyless_role.role,
-    akeyless_auth_method_universal_identity.learner_uid
-  ]
   role_name = akeyless_role.role.name
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
-
-  # Enforce that tokens authorized under this role MUST contain the participant's specific claim
-  sub_claims = {
-    user_space = var.instruqt_user_id
-  }
 }
 
 output "learner_uid" {
