@@ -17,16 +17,16 @@ provider "akeyless" {
 
 variable "akeyless_token" {
   type        = string
-  description = "Akeyless token"
+  description = "Akeyless admin auth session token"
   sensitive   = true
 }
 
 variable "instruqt_user_id" {
   type        = string
-  description = "Instruqt participant ID"
+  description = "Instruqt participant ID unique hash mapping string"
 }
 
-# Universal Identity for the learner
+# 1. Create the Universal Identity (UID) Method for the student environment
 resource "akeyless_auth_method_universal_identity" "learner_uid" {
   name        = format("/instruqt-users-uid/%s/uid-%s", var.instruqt_user_id, var.instruqt_user_id)
   jwt_ttl     = 500
@@ -34,19 +34,19 @@ resource "akeyless_auth_method_universal_identity" "learner_uid" {
   deny_rotate = true
 }
 
-# The Sub-Admin Role utilizing Path Templating
+# 2. Define a virtual "Sub-Admin" Role using Path Templating
 resource "akeyless_role" "role" {
-  name                = format("/instruqt-users-uid-roles/%s/uid-%s-role", var.instruqt_user_id, var.instruqt_user_id)
-  description         = format("Admin Role for user %s", var.instruqt_user_id)
+  name        = format("/instruqt-users-uid-roles/%s/uid-%s-role", var.instruqt_user_id, var.instruqt_user_id)
+  description = format("Admin Scope for user %s", var.instruqt_user_id)
   
-  # SYSTEM ADMINISTRATIVE RIGHTS (Crucial for console.akeyless.io UI views)
+  # SYSTEM ADMINISTRATIVE RIGHTS (Crucial for console.akeyless.io visibility checks)
   audit_access        = "own"
   analytics_access    = "own"
   event_center_access = "all"
-  gw_analytics_access = "all" # Enables visibility of the "Gateways" tab in the SaaS UI
+  gw_analytics_access = "all"   # REVEALS THE GATEWAYS MENU TAB OPTION IN THE CONSOLE UI
   sra_reports_access  = "own"
 
-  # Path Rules scoped safely to user space
+  # Path Rules scoped safely to user space using dynamic claim interpolation
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = "/TrainingUsers/{{user_space}}/*"
@@ -72,7 +72,7 @@ resource "akeyless_role" "role" {
   }
 }
 
-# Associating the identity with the designated role & injecting user_space criteria
+# 3. Associate the Identity to the Role, strictly pinning the user_space sub-claim
 resource "akeyless_associate_role_auth_method" "learner_uid_role" {
   depends_on = [
     akeyless_role.role,
@@ -81,6 +81,7 @@ resource "akeyless_associate_role_auth_method" "learner_uid_role" {
   role_name = akeyless_role.role.name
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
 
+  # Enforce that tokens authorized under this role MUST contain the participant's specific claim
   sub_claims = {
     user_space = var.instruqt_user_id
   }
