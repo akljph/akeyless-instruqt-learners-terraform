@@ -46,12 +46,12 @@ resource "akeyless_role" "role" {
   audit_access        = "own"
   analytics_access    = "own"
   event_center_access = "own"
-  gw_analytics_access = "own"
+  gw_analytics_access = "scoped"
   sra_reports_access  = "own"
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = "/*"
+    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "item-rule"
   }
 
@@ -63,19 +63,19 @@ resource "akeyless_role" "role" {
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = "/*"
+    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "target-rule"
   }
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = "/*"
+    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "role-rule"
   }
 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = "/*"
+    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "auth-method-rule"
   }
 
@@ -90,7 +90,7 @@ resource "akeyless_role" "role_viewer" {
 
   rules {
     capability = ["read", "list"]
-    path       = "/*"
+    path       = akeyless_role.role.name
     rule_type  = "role-rule"
   }
 }
