@@ -7,17 +7,24 @@ terraform {
   }
 }
 
-variable "akeyless_token" { type = string }
-variable "instruqt_user_id" { type = string }
+variable "akeyless_token" {
+  type        = string
+  description = "Akeyless Management Token"
+}
+
+variable "instruqt_user_id" {
+  type        = string
+  description = "Unique Sandbox ID for the participant"
+}
 
 provider "akeyless" {
   api_gateway_address = "https://api.akeyless.io"
   api_key_login {
-    access_id = var.akeyless_token
+    access_key = var.akeyless_token
   }
 }
 
-# 1. Universal Identity
+# 1. Create the Universal Identity Auth Method for the Gateway
 resource "akeyless_auth_method_universal_identity" "learner_uid" {
   name              = "/instruqt-users-uid/${var.instruqt_user_id}/uid-${var.instruqt_user_id}"
   ttl               = 500
@@ -26,7 +33,7 @@ resource "akeyless_auth_method_universal_identity" "learner_uid" {
   delete_protection = "false"
 }
 
-# 2. Base Access Role
+# 2. Main Admin Role with Consolidated Gateway Access
 resource "akeyless_role" "role" {
   name                = "/instruqt-users-uid-roles/${var.instruqt_user_id}/uid-${var.instruqt_user_id}-role"
   description         = "Role for user ${var.instruqt_user_id}"
@@ -35,18 +42,12 @@ resource "akeyless_role" "role" {
   event_center_access = "own"
   sra_reports_access  = "own"
   delete_protection   = "false"
-  gw_analytics_access = "scoped" # Top-level toggle mapping to "Gateways" row
+  
+  # ✅ CORRECT PATTERN: Declared inline inside the primary role resource block
+  gw_analytics_access = "scoped"
 }
 
-# 3. ✅ THE TERRAFORM FIX: The explicit Gateway Reports sub-rule
-resource "akeyless_role_rule" "gw_reports_visibility" {
-  role_name  = akeyless_role.role.name
-  rule_type  = "gw-reports-rule"
-  path       = "/scoped"
-  capability = ["read"]
-}
-
-# 4. Standard Lab Visibility Rules
+# 3. Core engine asset mapping visibility rules
 resource "akeyless_role_rule" "items_visibility" {
   role_name  = akeyless_role.role.name
   rule_type  = "item-rule"
@@ -75,11 +76,28 @@ resource "akeyless_role_rule" "targets_visibility" {
   capability = ["create", "read", "update", "delete", "list"]
 }
 
-# 5. Bind Role to Universal Identity
+resource "akeyless_role_rule" "admin_deny" {
+  role_name  = akeyless_role.role.name
+  rule_type  = "item-rule"
+  path       = "/Admin/*"
+  capability = ["deny"]
+}
+
+resource "akeyless_role" "gateway_visibility" {
+	name 				= akeyless_role.role.name
+	gw_analytics_access = "scoped"
+}
+
+# 4. Associate the Role to the Universal Identity Method
 resource "akeyless_associate_role_auth_method" "learner_uid_role" {
   role_name = akeyless_role.role.name
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
 }
 
-output "learner_uid" { value = akeyless_auth_method_universal_identity.learner_uid.name }
-output "uid_access_id" { value = akeyless_auth_method_universal_identity.learner_uid.access_id }
+output "learner_uid" { 
+  value = akeyless_auth_method_universal_identity.learner_uid.name 
+}
+
+output "uid_access_id" { 
+  value = akeyless_auth_method_universal_identity.learner_uid.access_id 
+}
