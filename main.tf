@@ -21,7 +21,7 @@ provider "akeyless" {
 
 variable "akeyless_token" {
   type        = string
-  description = "Akeyless token"
+  description = "Akeyless administrator token"
   sensitive   = true
 }
 
@@ -49,7 +49,7 @@ resource "akeyless_role" "role" {
   name                = format("/instruqt-users-uid-roles/%s/uid-%s-role", var.instruqt_user_id, var.instruqt_user_id)
   description         = format("Role for user %s with gateway visibility", var.instruqt_user_id)
   
-  # Crucial for UI log viewing
+  # Crucial for UI log and console management mapping
   gw_analytics_access = "scoped"
   audit_access        = "own"
   analytics_access    = "own"
@@ -57,13 +57,13 @@ resource "akeyless_role" "role" {
   sra_reports_access  = "scoped"
 
   # -------------------------------------------------------------
-  # GLOBAL VIEW RULES (Forces the UI to unhide the Gateways Tab)
+  # GLOBAL VIEW RULES (Unhides structural options in the UI sidebar)
   # -------------------------------------------------------------
   
   rules {
     capability = ["read", "list"]
     path       = "/*"
-    rule_type  = "item-rule" # Gateways are registered as "items" in Akeyless
+    rule_type  = "item-rule" # Gateways are tracked as "items" in Akeyless core
   }
 
   rules {
@@ -79,7 +79,7 @@ resource "akeyless_role" "role" {
   }
 
   # -------------------------------------------------------------
-  # SANDBOX WRITE RULES (Restricts modifications to their own folder)
+  # SANDBOX MODIFICATION RULES (Restricts changes to their own folder)
   # -------------------------------------------------------------
 
   rules {
@@ -106,7 +106,9 @@ resource "akeyless_role" "role" {
     rule_type  = "auth-method-rule"
   }
 
-  # Explicit administrative safety block
+  # -------------------------------------------------------------
+  # GLOBAL SAFETY DENY BLOCKS
+  # -------------------------------------------------------------
   rules {
     capability = ["deny"]
     path       = "/Admin/*"
@@ -115,7 +117,7 @@ resource "akeyless_role" "role" {
 }
 
 # ==========================================
-# ROLE VIEWER & ASSOC
+# ROLE VIEWER & ASSOCIATIONS
 # ==========================================
 
 resource "akeyless_role" "role_viewer" {
