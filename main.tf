@@ -68,7 +68,7 @@ resource "akeyless_role" "role" {
   rules {
     capability = ["read", "list"]
     path       = "/*"
-    rule_type  = "target-rule" # FIXED: Unhides the Targets tab in the sidebar
+    rule_type  = "target-rule" # Unhides the Targets tab in the sidebar
   }
 
   rules {
@@ -96,7 +96,7 @@ resource "akeyless_role" "role" {
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
-    rule_type  = "target-rule" # FIXED: Full CRUD capability inside sandbox folder
+    rule_type  = "target-rule" # Full CRUD capability inside sandbox folder
   }
 
   rules {
