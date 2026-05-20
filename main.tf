@@ -42,14 +42,13 @@ resource "akeyless_auth_method_universal_identity" "learner_uid" {
 }
 
 # ==========================================
-# MAIN LEARNER ROLE (With Gateway Visibility)
+# MAIN LEARNER ROLE (With Full Visibility & Targets Fixed)
 # ==========================================
 
 resource "akeyless_role" "role" {
   name                = format("/instruqt-users-uid-roles/%s/uid-%s-role", var.instruqt_user_id, var.instruqt_user_id)
-  description         = format("Role for user %s with gateway visibility", var.instruqt_user_id)
+  description         = format("Role for user %s with gateway and target visibility", var.instruqt_user_id)
   
-  # Crucial for UI log and console management mapping
   gw_analytics_access = "scoped"
   audit_access        = "own"
   analytics_access    = "own"
@@ -57,13 +56,19 @@ resource "akeyless_role" "role" {
   sra_reports_access  = "scoped"
 
   # -------------------------------------------------------------
-  # GLOBAL VIEW RULES (Unhides structural options in the UI sidebar)
+  # GLOBAL VIEW RULES (Unhides options in the UI sidebar console)
   # -------------------------------------------------------------
   
   rules {
     capability = ["read", "list"]
     path       = "/*"
-    rule_type  = "item-rule" # Gateways are tracked as "items" in Akeyless core
+    rule_type  = "item-rule" # Gateways and Secrets
+  }
+
+  rules {
+    capability = ["read", "list"]
+    path       = "/*"
+    rule_type  = "target-rule" # FIXED: Unhides the Targets tab in the sidebar
   }
 
   rules {
@@ -79,29 +84,29 @@ resource "akeyless_role" "role" {
   }
 
   # -------------------------------------------------------------
-  # SANDBOX MODIFICATION RULES (Restricts changes to their own folder)
+  # SANDBOX MODIFICATION RULES (Restricts changes to their folder)
   # -------------------------------------------------------------
 
   rules {
-    capability = ["create", "update", "delete"]
+    capability = ["create", "read", "update", "delete", "list"]
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "item-rule"
   }
 
   rules {
-    capability = ["create", "update", "delete", "list"]
+    capability = ["create", "read", "update", "delete", "list"]
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
-    rule_type  = "target-rule"
+    rule_type  = "target-rule" # FIXED: Full CRUD capability inside sandbox folder
   }
 
   rules {
-    capability = ["create", "update", "delete", "list"]
+    capability = ["create", "read", "update", "delete", "list"]
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "role-rule"
   }
 
   rules {
-    capability = ["create", "update", "delete", "list"]
+    capability = ["create", "read", "update", "delete", "list"]
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "auth-method-rule"
   }
