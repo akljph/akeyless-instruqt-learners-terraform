@@ -15,25 +15,18 @@ provider "akeyless" {
   }
 }
 
-# ==========================================
-# VARIABLES
-# ==========================================
-
 variable "akeyless_token" {
   type        = string
-  description = "Akeyless administrator token"
+  description = "Akeyless administrator session token"
   sensitive   = true
 }
 
 variable "instruqt_user_id" {
   type        = string
-  description = "Instruqt participant ID"
+  description = "Unique Instruqt participant identifier used for multi-tenant isolation"
 }
 
-# ==========================================
-# AUTH METHOD
-# ==========================================
-
+# 1. Create the Universal Identity (UID) Method for the student environment
 resource "akeyless_auth_method_universal_identity" "learner_uid" {
   name        = format("/instruqt-users-uid/%s/uid-%s", var.instruqt_user_id, var.instruqt_user_id)
   jwt_ttl     = 500
@@ -41,123 +34,60 @@ resource "akeyless_auth_method_universal_identity" "learner_uid" {
   deny_rotate = true
 }
 
-# ==========================================
-# MAIN LEARNER ROLE (With Full Visibility & Targets Fixed)
-# ==========================================
-
-resource "akeyless_role" "role" {
-  name                = format("/instruqt-users-uid-roles/%s/uid-%s-role", var.instruqt_user_id, var.instruqt_user_id)
-  description         = format("Role for user %s with gateway and target visibility", var.instruqt_user_id)
-  
-  gw_analytics_access = "scoped"
+# 2. Define a virtual "Sub-Admin" Role using Path Templating
+# Crucial change: The path utilizes {{user_space}} which enforces runtime tenant routing!
+resource "akeyless_role" "sub_admin_role" {
+  name                = format("/instruqt-users-uid-roles/%s/uid-%s-admin-role", var.instruqt_user_id, var.instruqt_user_id)
+  description         = format("Virtual Root Admin Role for sandbox %s", var.instruqt_user_id)
   audit_access        = "own"
   analytics_access    = "own"
-  event_center_access = "scoped"
-  sra_reports_access  = "scoped"
+  event_center_access = "own"
+  gw_analytics_access = "own"
+  sra_reports_access  = "own"
 
-  # -------------------------------------------------------------
-  # GLOBAL VIEW RULES (Unhides options in the UI sidebar console)
-  # -------------------------------------------------------------
-  
-  rules {
-    capability = ["read", "list"]
-    path       = "/*"
-    rule_type  = "item-rule" # Gateways and Secrets
-  }
-
-  rules {
-    capability = ["read", "list"]
-    path       = "/*"
-    rule_type  = "target-rule" # Unhides the Targets tab in the sidebar
-  }
-
-  rules {
-    capability = ["read", "list"]
-    path       = "/*"
-    rule_type  = "auth-method-rule"
-  }
-
-  rules {
-    capability = ["read", "list"]
-    path       = "/*"
-    rule_type  = "role-rule"
-  }
-
-  # -------------------------------------------------------------
-  # SANDBOX MODIFICATION RULES (Restricts changes to their folder)
-  # -------------------------------------------------------------
-
+  # Student has full administrator permissions over Secrets/Keys inside their sub-space
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    path       = "/TrainingUsers/{{user_space}}/*"
     rule_type  = "item-rule"
   }
 
+  # Student can manage and create Targets inside their sub-space
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
-    rule_type  = "target-rule" # Full CRUD capability inside sandbox folder
+    path       = "/TrainingUsers/{{user_space}}/*"
+    rule_type  = "target-rule"
   }
 
+  # Student can manage independent internal Roles inside their sub-space
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    path       = "/TrainingUsers/{{user_space}}/*"
     rule_type  = "role-rule"
   }
 
+  # Student can manage independent internal Auth Methods inside their sub-space
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    path       = "/TrainingUsers/{{user_space}}/*"
     rule_type  = "auth-method-rule"
   }
-
-  # -------------------------------------------------------------
-  # GLOBAL SAFETY DENY BLOCKS
-  # -------------------------------------------------------------
-  rules {
-    capability = ["deny"]
-    path       = "/Admin/*"
-    rule_type  = "item-rule"
-  }
 }
 
-# ==========================================
-# ROLE VIEWER & ASSOCIATIONS
-# ==========================================
-
-resource "akeyless_role" "role_viewer" {
-  depends_on = [akeyless_role.role]
-  name        = format("/instruqt-users-uid-roles/%s/role-viewer-%s-role", var.instruqt_user_id, var.instruqt_user_id)
-  description = format("Role Viewer for user %s", var.instruqt_user_id)
-
-  rules {
-    capability = ["read", "list"]
-    path       = akeyless_role.role.name
-    rule_type  = "role-rule"
-  }
-}
-
-resource "akeyless_associate_role_auth_method" "learner_uid_role" {
+# 3. Associate the Identity to the Role, strictly pinning the user_space sub-claim
+resource "akeyless_associate_role_auth_method" "learner_sub_admin_assoc" {
   depends_on = [
-    akeyless_role.role,
+    akeyless_role.sub_admin_role,
     akeyless_auth_method_universal_identity.learner_uid
   ]
-  role_name = akeyless_role.role.name
+  role_name = akeyless_role.sub_admin_role.name
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
-}
 
-resource "akeyless_associate_role_auth_method" "role_viewer_role" {
-  depends_on = [
-    akeyless_role.role_viewer,
-    akeyless_auth_method_universal_identity.learner_uid
-  ]
-  role_name = akeyless_role.role_viewer.name
-  am_name   = akeyless_auth_method_universal_identity.learner_uid.name
+  # Enforce that tokens authorized under this role MUST contain the participant's specific claim
+  sub_claims = {
+    user_space = var.instruqt_user_id
+  }
 }
-
-# ==========================================
-# OUTPUTS
-# ==========================================
 
 output "learner_uid" {
   value = akeyless_auth_method_universal_identity.learner_uid.name
