@@ -19,7 +19,11 @@ variable "instruqt_user_id" {
 
 provider "akeyless" {
   api_gateway_address = "https://api.akeyless.io"
-  token               = var.akeyless_token
+
+  # ✅ CORRECT STRUCTURAL PATTERN FOR THE TOKEN PROVIDER
+  token_login {
+    token = var.akeyless_token
+  }
 }
 
 # 1. Create the Universal Identity Auth Method for the Gateway
@@ -41,9 +45,7 @@ resource "akeyless_role" "role" {
   sra_reports_access  = "own"
   delete_protection   = "false"
 
-  # ✅ THE FIX: Aligns the "Gateways" Row in the console GUI to "Scoped" 
-  # This grants the UID-token-authenticated gateway permission to register, 
-  # check-in, and successfully list its cluster properties within the UI.
+  # Aligns the "Gateways" Row in the console GUI to "Scoped"
   gw_analytics_access = "scoped"
 
   # Standard laboratory folder engine permissions
