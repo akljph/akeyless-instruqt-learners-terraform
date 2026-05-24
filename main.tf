@@ -22,6 +22,10 @@ provider "akeyless" {
   }
 }
 
+# ==========================================
+# VARIABLES
+# ==========================================
+
 variable "akeyless_token" {
   type        = string
   description = "Akeyless token"
@@ -33,6 +37,10 @@ variable "instruqt_user_id" {
   description = "Instruqt participant ID"
 }
 
+# ==========================================
+# AUTH METHOD
+# ==========================================
+
 resource "akeyless_auth_method_universal_identity" "learner_uid" {
   name        = format("/instruqt-users-uid/%s/uid-%s", var.instruqt_user_id, var.instruqt_user_id)
   jwt_ttl     = 500
@@ -40,6 +48,11 @@ resource "akeyless_auth_method_universal_identity" "learner_uid" {
   deny_rotate = true
 }
 
+# ==========================================
+# ROLES
+# ==========================================
+
+# Primary User Role
 resource "akeyless_role" "role" {
   name                = format("/instruqt-users-uid-roles/%s/uid-%s-role", var.instruqt_user_id, var.instruqt_user_id)
   description         = format("Role for user %s", var.instruqt_user_id)
@@ -48,6 +61,7 @@ resource "akeyless_role" "role" {
   event_center_access = "own"
   sra_reports_access  = "own"
 
+  # Secrets and items access
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
@@ -60,15 +74,18 @@ resource "akeyless_role" "role" {
     rule_type  = "item-rule"
   }
 
+  # Target access 
   rules {
     capability = ["create", "read", "update", "delete", "list"]
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "target-rule"
   }
 
+  # FIX: Adjusted path to match where their roles actually live.
+  # This allows the training user to run terraform/CLI updates on their own roles.
   rules {
     capability = ["create", "read", "update", "delete", "list"]
-    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    path       = format("/instruqt-users-uid-roles/%s/*", var.instruqt_user_id)
     rule_type  = "role-rule"
   }
 
@@ -77,9 +94,9 @@ resource "akeyless_role" "role" {
     path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
     rule_type  = "auth-method-rule"
   }
-
 }
 
+# Viewer Role
 resource "akeyless_role" "role_viewer" {
   depends_on = [
     akeyless_role.role
@@ -93,6 +110,24 @@ resource "akeyless_role" "role_viewer" {
     rule_type  = "role-rule"
   }
 }
+
+# Dedicated Scoped Gateway Viewer Role
+# FIX: Moved path inside allowed folder and removed invalid trailing wildcard '*'
+resource "akeyless_role" "gateway_viewer_role" {
+  name                = format("/instruqt-users-uid-roles/%s/gateway-viewer-role", var.instruqt_user_id)
+  gw_analytics_access = "scoped"
+
+  # Tells the scoped attribute what item path to restrict telemetry data to
+  rules {
+    capability = ["read", "list"]
+    path       = format("/TrainingUsers/%s/*", var.instruqt_user_id)
+    rule_type  = "item-rule"
+  }
+}
+
+# ==========================================
+# ROLE ASSOCIATIONS
+# ==========================================
 
 resource "akeyless_associate_role_auth_method" "learner_uid_role" {
   depends_on = [
@@ -112,11 +147,19 @@ resource "akeyless_associate_role_auth_method" "role_viewer_role" {
   am_name   = akeyless_auth_method_universal_identity.learner_uid.name
 }
 
-resource "akeyless_role" "gateway_viewer_role" {
-  # Changed path to match your allowed folder and removed the wildcard '*'
-  name                = format("/instruqt-users-uid-roles/%s/gateway-viewer-%s-role", var.instruqt_user_id, var.instruqt_user_id)
-  gw_analytics_access = "scoped"
+# FIX: Added association to link the new Gateway Scoped role to the student
+resource "akeyless_associate_role_auth_method" "gateway_viewer_role_assoc" {
+  depends_on = [
+    akeyless_role.gateway_viewer_role,
+    akeyless_auth_method_universal_identity.learner_uid
+  ]
+  role_name = akeyless_role.gateway_viewer_role.name
+  am_name   = akeyless_auth_method_universal_identity.learner_uid.name
 }
+
+# ==========================================
+# OUTPUTS
+# ==========================================
 
 output "learner_uid" {
   value = akeyless_auth_method_universal_identity.learner_uid.name
