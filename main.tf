@@ -46,7 +46,6 @@ resource "akeyless_role" "role" {
   audit_access        = "own"
   analytics_access    = "own"
   event_center_access = "own"
-  gw_analytics_access = "own"
   sra_reports_access  = "own"
 
   rules {
@@ -114,7 +113,7 @@ resource "akeyless_associate_role_auth_method" "role_viewer_role" {
 }
 
 resource "akeyless_role" "gateway_viewer_role" {
-  name                = format("/instruqt-users-uid-roles/%s/gateway-viewer-%s-role", var.instruqt_user_id, var.instruqt_user_id)
+  name                = format("/TrainingUsers/%s/*", var.instruqt_user_id)
   gw_analytics_access = "scoped"
 }
 
