@@ -87,6 +87,7 @@ resource "akeyless_role" "role_viewer" {
   ]
   name        = format("/instruqt-users-uid-roles/%s/role-viewer-%s-role", var.instruqt_user_id, var.instruqt_user_id)
   description = format("Role Viewer for user %s", var.instruqt_user_id)
+  gw_analytics_access = "scoped"
 
   rules {
     capability = ["read", "list"]
